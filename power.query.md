@@ -350,3 +350,142 @@ try error "negative unit count" otherwise 42
 ```
 
 ## 词法结构(Lexical Structure)  
+
+## 错误处理
+
+M语言表达式的计算，只会产生两种输出结果：  
+
+* 生成单个值。
+* 生成错误信息，来表明表达式在计算的过程中无法产生一个值。一个错误包含了一个记录，这条记录里的内容可提供更详细的信息来表明是什么导致计算无法完成。
+
+可以在表达式内部产生错误，也可以在表达式内部直接处理错误。
+
+### 引发错误
+
+引发错误语法：  
+error-raising-expression:  
+&nbsp;&nbsp;&nbsp;&nbsp;error expression
+
+文本值可作为错误表达式的简写形式：  
+
+```M
+error "Hello, world" // error with message "Hello, world"
+```
+
+完整的错误值是一条记录，可以用Error.Record来构造这条记录：  
+
+```M
+error Error.Record("FileNotFound", "File my.txt not found","my.txt")
+```
+
+上面的表达式等价于：  
+
+```M
+error [ 
+    Reason = "FileNotFound", 
+    Message = "File my.txt not found", 
+    Detail = "my.txt" 
+]
+```
+
+!> 直接使用文本的时候，实际上是记录了error的message为那个文本  
+
+引发一个错误，将导致当前在计算的表达式停止，此时与这个错误关联的表达式都会展开，直到：  
+
+* 错误信息传播到了记录中的一个字段、分区中的一个成员、let内的一个变量，这里统称为条目，错误信息会被一起保存在那个条目里，然后扩散。对该条目的任何后续访问都将导致引发相同的错误。 记录、节或 let 表达式的其他条目不一定会受到影响（除非它们访问之前标记为有错误的条目）。  
+* 已达到顶级表达式。 在这种情况下，计算顶级表达式的结果是一个错误而不是一个值。  
+* 已达到 try 表达式。 在这种情况下，将捕获错误并以值的形式返回。  
+
+### 处理错误  
+
+处理错误的语法：  
+error-handling-expression:  
+&nbsp;&nbsp;&nbsp;&nbsp;try protected-expression otherwise-clauseopt  
+protected-expression:  
+&nbsp;&nbsp;&nbsp;&nbsp;expression  
+otherwise-clause:  
+&nbsp;&nbsp;&nbsp;&nbsp;otherwise default-expression  
+default-expression:  
+&nbsp;&nbsp;&nbsp;&nbsp;expression  
+
+在不使用_otherwise-clause_情况下，有可能出现以下几种情况：  
+
+* 如果_protected-expression_的计算结果不会引发错误，并且产生了值x，那么_error-handling-expression_产生的结果是一条如下形式的记录：  
+
+```M
+[ HasErrors = false, Value = x ]
+```
+
+* 如果_protected-expression_的计算结果引发了错误，并且产生了错误值e，那么_error-handling-expression_产生的结果是一条如下形式的记录：  
+
+```M
+[ HasErrors = true, Error = e ]
+```
+
+在使用_otherwise-clause_情况下，有可能出现以下几种情况：  
+
+* 必须在_otherwise-clause_之前计算_protected-expression_。  
+* 当且仅当计算 protectedexpression 引发错误时，才必须计算_otherwise-clause_。
+* 如果在计算 protectedexpression 引发错误，_otherwise-clause_计算出来的结果就是最终的_error-handling-expression_的结果  
+* 在计算_otherwise-clause_的时所产生的错误会扩散  
+
+下面的示例演示了在没有引发错误的情况下的 error-handling-expression：  
+
+```M
+let
+    x = try "A"
+in
+    if x[HasError] then x[Error] else x[Value] 
+// "A"
+```
+
+下面的示例演示了引发错误，然后对其进行处理：  
+
+```M
+let
+    x = try error "A" 
+in
+    if x[HasError] then x[Error] else x[Value] 
+// [ Reason = "Expression.Error", Message = "A", Detail = null ]
+```
+
+try表达式处理产生的错误结果可由otherwise来替代：  
+
+```M
+try error "A" otherwise 1 
+// 1
+```
+
+如果 otherwise 子句也引发错误，那么整个 try 表达式也会引发错误：  
+
+```M
+try error "A" otherwise error "B" 
+// error with message "B"
+```
+
+### 记录和 let 初始值设定项中的错误
+
+下面的示例显示了一个记录初始值设定项，其中字段 A 引发错误，并且由两个其他字段 B 和 C 访问。 字段 B 不处理 A 引发的错误，但是 C 会处理此错误。 最终字段 D 不访问 A，因此不受 A 中的错误影响。  
+
+```M
+[ 
+    A = error "A", 
+    B = A + 1,
+    C = let x =
+            try A in
+                if not x[HasError] then x[Value]
+                else x[Error], 
+    D = 1 + 1 
+]
+```
+
+计算以上表达式的结果是：
+
+```M
+[ 
+    A = // error with message "A" 
+    B = // error with message "A" 
+    C = "A", 
+    D = 2 
+]
+```
