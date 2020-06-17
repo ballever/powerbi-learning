@@ -1,6 +1,10 @@
 # M语言
 
-## 介绍
+## 写在前面
+
+这一章节的内容完全来自于官方文档，官方的中文文档不太好，我看得很费劲，所以直接看的英文文档，看完后优化了官方中文文档，有些地方加了一些自己的备注。建议有能力直接看官方的英文文档。  
+
+## 简单介绍
 
 ### 概述
 
@@ -351,6 +355,114 @@ try error "negative unit count" otherwise 42
 
 ## 词法结构(Lexical Structure)  
 
+## 基本概念  
+
+### 值(value)  
+
+单个数据称为_值(value)_。 广义上讲，有两个常规类别的值：基元值和结构化值。前者是值的最基本形式(atomic)，后者由基元值和其他结构化值构成。 例如，值  
+
+```M
+1 
+true
+3.14159 
+"abc"
+```
+
+是基元，因为它们不由其他值构成。 但是，值  
+
+```M
+{1, 2, 3} 
+[ A = {1}, B = {2}, C = {3} ]
+```
+
+是使用基元值进行构造的，在这条记录中，是使用其他结构化值构造的。  
+
+### 表达式(expression)  
+
+_表达式_是用于构造值的公式。 表达式可以使用多种语法结构形成。 下面是一些表达式示例。 每一行都是一个单独的表达式。
+
+```M
+"Hello World"             // a text value 
+123                       // a number 
+1 + 2                     // sum of two numbers 
+{1, 2, 3}                 // a list of three numbers 
+[ x = 1, y = 2 + 3 ]      // a record containing two fields: 
+                          //        x and y 
+(x, y) => x + y           // a function that computes a sum 
+if 2 > 1 then 2 else 1    // a conditional expression 
+let x = 1 + 1  in x * 2   // a let expression 
+error "A"                 // error with message "A"
+```
+
+如上所示，最简单的表达式形式，字面量本身就是值。  
+更复杂的表达式由其他表达式（称为 sub-expressions）组成。 例如：  
+
+```M
+1 + 2
+```
+
+上面的例子实际上又3个表达式组成，字面值_1_和_2_是表达式_1+2_的子表达式。  
+在表达式中执行由句法结构定义好的算法，称为_计算_表达式。每种类型的表达式都具有其计算规则。 例如，字面量表达式（如 1）将生成一个常数值，而表达式 a + b 将通过计算其他两个表达式（a 和 b）来获取生成的值，并根据一组规则将它们相加。  
+
+### 环境和变量
+
+## 值(value)   
+
+## 类型
+
+## 运算符  
+
+## Let  
+
+### Let表达式(expression)
+
+一个let表达式可以用来获取变量的中间计算结果的值。  
+
+let-expression:  
+&nbsp;&nbsp;&nbsp;&nbsp;let variable-list in expression  
+variable-list:  
+&nbsp;&nbsp;&nbsp;&nbsp;variable  
+&nbsp;&nbsp;&nbsp;&nbsp;variable , variable-list  
+variable:  
+&nbsp;&nbsp;&nbsp;&nbsp;variable-name = expression  
+variable-name:  
+&nbsp;&nbsp;&nbsp;&nbsp;identifier  
+
+下面的示例显示要计算的中间结果，这些结果存储在变量 x、y 和 z 中，以供在后续计算 x + y + z 中使用：  
+
+```M
+let     x = 1 + 1,
+        y = 2 + 2,     
+        z = y + 1 
+in
+        x + y + z
+```  
+
+此表达式的结果为：  
+
+```M
+11  // (1 + 1) + (2 + 2) + (2 + 2 + 1)
+```  
+
+在计算 let-expression 中的表达式时，存在以下情况：  
+* 变量列表中的表达式定义了一个新的作用域，其中包含来自 variable-list 产生式的标识符，并且在计算 variable-list 产生式中的表达式时必须存在 。 variable-list 中的表达式可能相互引用。
+* 在计算 let-expression 中的表达式之前，必须先计算 variable-list 中的表达式。
+* 除非使用了 variable-list 中的表达式，否则不能对其进行计算。
+* 传播在计算 let-expression 中的表达式期间引发的错误。
+let 表达式可以看作是隐式记录表达式的语法糖。下面的表达式与上面的表达式等效：  
+
+```M
+[     x = 1 + 1,
+      y = 2 + 2,
+      z = y + 1,
+      result = x + y + z 
+][result]
+```
+
+## 条件语句  
+
+## 函数
+
 ## 错误处理
 
 M语言表达式的计算，只会产生两种输出结果：  
@@ -463,7 +575,7 @@ try error "A" otherwise error "B"
 // error with message "B"
 ```
 
-### 记录和 let 初始值设定项中的错误
+### 初始化记录和let时的错误
 
 下面的示例显示了一个记录初始值设定项，其中字段 A 引发错误，并且由两个其他字段 B 和 C 访问。 字段 B 不处理 A 引发的错误，但是 C 会处理此错误。 最终字段 D 不访问 A，因此不受 A 中的错误影响。  
 
@@ -489,3 +601,43 @@ try error "A" otherwise error "B"
     D = 2 
 ]
 ```
+M 中的错误处理应在接近错误原因的位置执行，以处理惰性字段初始化以及延迟闭包计算的影响。下面这个例子展示了尝试使用try进行错误处理时，最终并没有得到想要的错误处理结果。  
+
+```M
+let
+    f = (x) => [ a = error "bad", b = x ],
+    g = try f(42) otherwise 123
+in 
+    g[a]  // error "bad"
+```
+
+在此示例中，定义 g 用于处理调用 f 时引发的错误。 但是，错误发生在一个由程序初始化的字段中，那么只有在这个初始化字段被调用时，才会引发错误。因此函数f产生的记录_[ a = error "bad", b = 42 ]_，直接传递给了try，由于a没有被调用，因此try的结果是么有error，直接返回了这条记录。  
+当最终访问a，即g[a]时，才引发了错误。  
+
+### 不执行的错误  
+
+当编写表达式的时候，作者可能会希望忽略表达式的部分内容不去执行，但是仍然希望表达式的其他部分可以正常执行。一种方法是当执行进入这部分不想被执行的部分时，引发一个错误。比如：  
+
+```M
+(x, y) =>
+     if x > y then
+         x - y
+     else
+         error Error.Record("Expression.Error", 
+            "Not Implemented")
+```
+
+省略号（...）可用作error的快捷方式。  
+
+not-implemented-expression:
+&nbsp;&nbsp;&nbsp;&nbsp;...  
+
+例如，下面的示例等效于前面的示例：  
+
+```M
+(x, y) => if x > y then x - y else ...
+```  
+
+## 分区  
+
+## 合并语法
