@@ -355,6 +355,390 @@ try error "negative unit count" otherwise 42
 
 ## 词法结构(Lexical Structure)  
 
+### 文档  
+
+M 文档是 Unicode 字符的有序序列。 M 允许在 M 文档的不同部分使用不同类别的 Unicode 字符。 有关 Unicode 字符类的信息，请参阅 Unicode 标准，版本 3.0 中的第 4.5 节。  
+文档要么由一个表达式组成，要么由组织成节的多组定义构成 。 第 10 章对节进行了详细说明。 从概念上讲，以下步骤用于从文档中读取表达式：  
+
+* 文档根据其字符编码方案被解码为一个 Unicode 字符序列。
+* 执行词法分析，从而将 Unicode 字符流转换为令牌流。 本节余下的小节将介绍词法分析。
+* 执行词法分析，从而将令牌流转换为可计算的形式。 后续部分将介绍此过程。
+
+### 语法约定  
+
+词法和句法用语法产生式表示。每种语法产生式将非终端符号以及非终端符号的可能扩展定义为非终端符号或者终端符号序列。在语法生产式中，非终端符号_non-terminal symbols_显示为斜体，终端符号显示为固定长度字体。  
+
+文法产生式的第一行是定义的非终端符号的名称，后跟冒号。 每一个后续缩进行都包含一个非终端符的可能扩展，该非终端符由一系列非终端符或终端符符号组成。 例如，产生式：  
+
+_if-expression_:  
+
+　　if _if-condition_ then _true-expression_ else _false-expression_  
+
+定义一个 if-expression 由令牌 if 后跟 if-condition，令牌 then 后跟 true-expression 以及令牌 else 后跟 false-expression 组成 。  
+
+当非终端符号有多个可能的扩展时，不同的扩展在单独的行中列出。 例如，产生式：  
+
+_variable-list_：  
+　　_variable_  
+　　_variable-list_ , _variable_  
+
+定义一个 variable-list，它由一个变量组成，也可以由另一个variable-list后跟variable 组成。 换言之，这个定义是递归的，它指定变量列表由一个或多个（用逗号分隔的）变量组成。  
+
+下标后缀“opt”用于指示可选符号。 产生式：  
+
+_field-specification_:  
+
+　　optional<sub>opt</sub> field-name = field-type  
+为以下的简写：  
+
+_field-specification_:  
+
+　　field-name = field-type  
+　　optional field-name = field-type  
+
+并定义了 field-specification中以终端符号optional开头的可选参数，后跟 field-name、终端符号 = 和 field-type。  
+
+替代项通常在单独的行中列出，但在有许多替代项的情况下，可以在单独的一行里列出所有替代项，并在这一行前面使用“one of”。 这是对在单独的行中列出每个替代项的简化。 例如，产生式：  
+
+_decimal-digit_: one of  
+　　0 1 2 3 4 5 6 7 8 9  
+
+为以下的简写：  
+_decimal-digit_:  
+
+　　0  
+　　1  
+　　2  
+　　3  
+　　4  
+　　5  
+　　6  
+　　7  
+　　8  
+　　9  
+
+### 词法分析  
+
+在词法级别，M 文档由一系列空白区域、注释和令牌元素组成 。 以下各节将介绍这些产生式。 在语法中，只有令牌元素是有意义的。  
+
+lexical-unit:  
+　　lexical-elements<sub>opt</sub>  
+lexical-elements:  
+　　lexical-element  
+　　lexical-element  
+　　lexical-elements  
+lexical-element:  
+　　whitespace  
+　　token comment  
+
+### 空白区域
+
+空格用于分隔 M 文档中的注释和令牌。 空格包括空格字符（它是 Unicode 类 Zs 的一部分），以及水平和垂直制表符、换页符和换行符序列。 换行字符序列包括回车符、换行符、后跟换行符的回车符、下一行和段落分隔符。  
+
+空格：  
+　　带有 Unicode 类 Zs 的任何字符  
+　　水平制表符字符 (U+0009)  
+　　垂直制表符 (U+000B)  
+　　换页符 (U+000C)  
+　　后跟换行符 (U+000A) 的回车符 (U+000D)  
+　　new-line-character  
+new-line-character：  
+　　回车符 (U+000D)  
+　　换行符 (U+000A)  
+　　换行符 (U+0085)  
+　　行分隔符 (U+2028)  
+　　段落分隔符 (U+2029)  
+
+为了与添加 end-of-file 标记的源代码编辑工具兼容，并使文档能够被看作正确终止的行序列，将按顺序对 M 文档应用以下转换：  
+
+* 如果文档的最后一个字符是 Control-Z 字符 (U+001A)，则删除此字符。  
+* 如果文档非空并且文档的最后一个字符不是回车符 (U+000D)、换行符 (U+000A)、行分隔符 (U+2028) 或段落分隔符 (U+2029)，则在文档末尾添加回车符 (U+000D)。  
+
+### 注释  
+
+支持两种形式的注释：单行注释和分隔注释。 单行注释以字符 // 开头，并扩展到//所在行的末尾。 分隔注释以字符 /\* 开头，以字符 \*/ 结尾。分隔注释可能跨多行。  
+
+comment:  
+　　single-line-comment  
+　　delimited-comment  
+single-line-comment:  
+　　// single-line-comment-characters<sub>opt</sub>  
+single-line-comment-characters:  
+　　single-line-comment-character single-line-comment-characters<sub>opt</sub>  
+single-line-comment-character:  
+　　Any Unicode character except a new-line-character  
+delimited-comment:  
+　　/\* delimited-comment-text<sub>opt</sub> asterisks \*/  
+delimited-comment-text:  
+　　delimited-comment-section delimited-comment-text<sub>opt</sub>  
+delimited-comment-section:  
+　　/  
+　　asterisks<sub>opt</sub> not-slash-or-asterisk  
+asterisks:  
+　　\* asterisks<sub>opt</sub>  
+not-slash-or-asterisk:  
+　　Any Unicode character except \* or /  
+
+注释不能嵌套。在当行注释//中使用/\* 和 \*/没有什么特殊意思，在分割注释/\* 和 \*/中使用单行注释//，//也没有特殊意思  
+在注释内的文本文字不会被处理。  
+
+### 令牌
+
+令牌是标识符、关键字、文字、运算符或标点符号。 空白和注释用于分隔标记，但不会将其视为令牌。
+token:  
+　　identifier  
+　　keyword  
+　　literal  
+　　operator-or-punctuator  
+
+#### 字符转义序列  
+
+M 文本值可以包含任意 Unicode 字符。 然而，文字文本仅限于图形字符，需要对非图形字符使用转义序列。 例如，要在文字文本中包含回车符、换行符或制表符，可以分别使用 #(cr)、#(lf) 和 #(tab) 转义序列。  
+
+```M
+"a#(lf)b"
+
+/* 返回
+a
+b
+*/
+```
+
+若要在文字文本中嵌入转义序列开始字符 #(，# 本身需要进行转义：  
+
+```M
+"#(#)("
+//返回 #(
+```
+
+单个转义序列中可以包含多个转义码，用逗号分隔；因此，以下两个序列是等效的：  
+
+```M
+#(cr,lf) 
+#(cr)#(lf)
+```
+
+下面介绍了转移序列的机制  
+
+character-escape-sequence:  
+　　#( escape-sequence-list )  
+escape-sequence-list：  
+　　single-escape-sequence  
+　　single-escape-sequence , escape-sequence-list  
+single-escape-sequence：  
+　　long-unicode-escape-sequence  
+　　short-unicode-escape-sequence  
+　　control-character-escape-sequence  
+　　escape-escape  
+long-unicode-escape-sequence：  
+　　hex-digit hex-digit hex-digit hex-digit hex-digit hex-digit hex-digit hex-digit  
+short-unicode-escape-sequence：  
+　　hex-digit hex-digit hex-digit hex-digit  
+control-character-escape-sequence：  
+　　control-character  
+control-character：  
+　　cr  
+　　lf  
+　　tab  
+escape-escape:  
+　　#  
+
+#### 文本  
+
+文字文本是值的源代码展示形式  
+
+literal:  
+　　logical-literal  
+　　number-literal  
+　　text-literal  
+　　null-literal  
+　　verbatim-literal  
+
+##### null文本  
+
+null 文本用于写入 null 值。 null 值表示不存在的值。  
+
+null-literal:  
+　　null  
+
+##### 逻辑文本  
+
+逻辑文本用于写入值 true 和 false，并生成逻辑值。
+
+logical-literal:  
+　　true  
+　　false  
+
+##### 数字文本
+
+数字文字用于写入数字值并生成数值。  
+
+number-literal:  
+      decimal-number-literal  
+      hexadecimal-number-literal  
+decimal-number-literal:  
+      decimal-digits . decimal-digits exponent-part<sub>opt</sub>  
+      . decimal-digits exponent-part<sub>opt</sub>  
+      decimal-digits exponent-part<sub>opt</sub>  
+decimal-digits:  
+      decimal-digit decimal-digits<sub>opt</sub>  
+decimal-digit: one of  
+      0 1 2 3 4 5 6 7 8 9  
+exponent-part:  
+      e signopt decimal-digits  
+      E signopt decimal-digits  
+sign: one of  
+      + -  
+hexadecimal-number-literal:  
+      0x hex-digits  
+      0X hex-digits  
+hex-digits:  
+      hex-digit hex-digits<sub>opt</sub>  
+hex-digit: one of  
+      0 1 2 3 4 5 6 7 8 9 A B C D E F a b c d e f  
+
+请注意，如果数字文本中包含小数点，则它后面必须至少有一个数字。 例如，1.3 是数字文本，但 1. 和 1.e3 不是。  
+
+##### 文字文本
+
+文本文字用于写入 Unicode 字符序列并生成文本值。  
+text-literal:  
+      " text-literal-characters<sub>opt</sub> "  
+text-literal-characters：  
+      text-literal-character text-literal-characters<sub>opt</sub>  
+text-literal-character：  
+      single-text-character  
+      character-escape-sequence  
+      double-quote-escape-sequence  
+single-text-character：  
+      除后跟 ( (U+0028) 的 " (U+0022) 或 # (U+0023) 外的任何字符  
+double-quote-escape-sequence:  
+      "" (U+0022, U+0022)  
+
+若要在文本值中包含引号，请重复使用引号，如下所示：  
+
+```M
+"The ""quoted"" text" 
+// The "quoted" text
+```  
+
+可使用 character-escape-sequence 产生式在文本值中写入字符，而无需在文档中将它们直接编码为 Unicode 字符。 例如，回车和换行可以用文本值写入：  
+
+```M
+"Hello world#(cr,lf)A"  
+/*
+Hello world
+A
+*/
+```
+
+#### 逐字文本
+
+逐字文本用于存储用户作为代码输入但无法正确分析为代码的 Unicode 字符序列。 在运行时，它会生成一个错误值。  (不明白)
+
+verbatim-literal:  
+      #!" text-literal-characters<sub>opt</sub> "  
+
+#### 标识符  
+
+标识符是用于引用值的名称。 标识符可以是常规标识符，也可以是带引号的标识符。  
+
+identifier:  
+　　regular-identifier  
+　　quoted-identifier  
+regular-identifier:  
+　　available-identifier  
+　　available-identifier dot-character regular-identifier  
+available-identifier:  
+　　A keyword-or-identifier that is not a keyword  
+keyword-or-identifier：  
+　　identifier-start-character identifier-part-characters<sub>opt</sub>  
+identifier-start-character：  
+　　letter-character  
+　　underscore-character  
+identifier-part-characters：  
+　　identifier-part-character identifier-part-characters<sub>opt</sub>  
+identifier-part-character：  
+　　letter-character  
+　　decimal-digit-character  
+　　underscore-character  
+　　connecting-character  
+　　combining-character  
+　　formatting-character  
+dot-character：  
+　　. (U+002E)  
+underscore-character:  
+　　_ (U+005F)  
+letter-character:  
+　　Lu、Ll、Lt、Lm、Lo 或 Nl 类的 Unicode 字符  
+combining-character:  
+　　Mn 或 Mc 类的 Unicode 字符  
+decimal-digit-character:  
+　　Nd 类的 Unicode 字符  
+connecting-character:  
+　　Pc 类的 Unicode 字符  
+formatting-character:  
+　　Cf 类的 Unicode 字符 
+带引号的标识符可用于允许零个或多个 Unicode 字符的任何序列用作标识符，包括关键字、空格、注释、运算符和标点符号。   
+quoted-identifier:  
+　　#" text-literal-characters<sub>opt</sub> "  
+注意，转义序列和用于转义引号的双引号可以在带引号的标识符中使用，就像在 text-literal 中一样 。  
+以下示例对包含空格字符的名称使用标识符引号：  
+
+```M
+[ 
+    #"1998 Sales" = 1000, 
+    #"1999 Sales" = 1100, 
+    #"Total Sales" = #"1998 Sales" + #"1999 Sales"
+]
+```
+
+以下示例使用标识符引号将 + 运算符包含在标识符中：  
+
+```M
+[ 
+    #"A + B" = A + B, 
+    A = 1, 
+    B = 2 
+]
+```
+
+##### 通用标识符  
+
+在 M 中有两个地方不会应为包含空格或关键字或数字文字的标识符引起的歧义。 这两个地方分别是记录中的字段名称，以及在字段访问运算符 ([ ]) 中，M 允许这样的标识符，而不必使用带引号的标识符。　　
+
+```M
+[ 
+    Data = [ Base Line = 100, Rate = 1.8 ], 
+    Progression = Data[Base Line] * Data[Rate]
+]
+```  
+
+用于命名和访问字段的标识符称为通用标识符，定义如下：  
+generalized-identifier：  
+　　generalized-identifier-part  
+　　generalized-identifier 仅用空格分隔 (U+0020)  
+generalized-identifier-part:  
+　　generalized-identifier-segment  
+　　decimal-digit-character generalized-identifier-segment  
+generalized-identifier-segment:  
+　　keyword-or-identifier  
+　　keyword-or-identifier dot-character keyword-or-identifier  
+
+#### 关键字  
+
+_关键字_是保留的类似标识符的字符序列，不能用作标识符，除非使用[标识引用机制](/power.query?id=标识符)或允许使用[通用标识符](power.query?id=%e9%80%9a%e7%94%a8%e6%a0%87%e8%af%86%e7%ac%a6)。  
+keyword: one of  
+　　and as each else error false if in is let meta not null or otherwise  
+　　section shared then true try type #binary #date #datetime  
+　　#datetimezone #duration #infinity #nan #sections #shared #table #time  
+
+#### 运算符和标点符号  
+
+有多种运算符和标点符号。 表达式中使用运算符来描述涉及一个或多个操作对象的操作。 例如，表达式 a + b 使用 + 运算符添加两个操作对象 a 和 b。 标点符号用于分组和分隔。  
+operator-or-punctuator: one of  
+　　, ; = < <= > >= <> + - * / & ( ) [ ] { } @ ! ? => .. ...　　
+
 ## 基本概念  
 
 ### 值(value)  
@@ -386,27 +770,28 @@ _表达式_是用于构造值的公式。 表达式可以使用多种语法结�
 123                       // a number 
 1 + 2                     // sum of two numbers 
 {1, 2, 3}                 // a list of three numbers 
-[ x = 1, y = 2 + 3 ]      // a record containing two fields: 
-                          //        x and y 
+[ x = 1, y = 2 + 3 ]      // a record containing two fields: x and y 
 (x, y) => x + y           // a function that computes a sum 
 if 2 > 1 then 2 else 1    // a conditional expression 
 let x = 1 + 1  in x * 2   // a let expression 
 error "A"                 // error with message "A"
 ```
 
-如上所示，最简单的表达式形式，字面量本身就是值。  
+如上所示，最简单的表达式形式，文字本身就是值。  
 更复杂的表达式由其他表达式（称为 sub-expressions）组成。 例如：  
 
 ```M
 1 + 2
 ```
 
-上面的例子实际上又3个表达式组成，字面值_1_和_2_是表达式_1+2_的子表达式。  
-在表达式中执行由句法结构定义好的算法，称为_计算_表达式。每种类型的表达式都具有其计算规则。 例如，字面量表达式（如 1）将生成一个常数值，而表达式 a + b 将通过计算其他两个表达式（a 和 b）来获取生成的值，并根据一组规则将它们相加。  
+上面的例子实际上又3个表达式组成，文字_1_和_2_是表达式_1+2_的子表达式。  
+在表达式中执行由句法结构定义好的算法，称为_计算_表达式。每种类型的表达式都具有其计算规则。 例如，文字表达式（如 1）将生成一个常数值，而表达式 a + b 将通过计算其他两个表达式（a 和 b）来获取生成的值，并根据一组规则将它们相加。  
 
 ### 环境和变量
 
-## 值(value)   
+
+
+## 值(value)  
 
 ## 类型
 
@@ -419,14 +804,14 @@ error "A"                 // error with message "A"
 一个let表达式可以用来获取变量的中间计算结果的值。  
 
 let-expression:  
-&nbsp;&nbsp;&nbsp;&nbsp;let variable-list in expression  
+　　let variable-list in expression  
 variable-list:  
-&nbsp;&nbsp;&nbsp;&nbsp;variable  
-&nbsp;&nbsp;&nbsp;&nbsp;variable , variable-list  
+　　variable  
+　　variable , variable-list  
 variable:  
-&nbsp;&nbsp;&nbsp;&nbsp;variable-name = expression  
+　　variable-name = expression  
 variable-name:  
-&nbsp;&nbsp;&nbsp;&nbsp;identifier  
+　　identifier  
 
 下面的示例显示要计算的中间结果，这些结果存储在变量 x、y 和 z 中，以供在后续计算 x + y + z 中使用：  
 
@@ -445,6 +830,7 @@ in
 ```  
 
 在计算 let-expression 中的表达式时，存在以下情况：  
+
 * 变量列表中的表达式定义了一个新的作用域，其中包含来自 variable-list 产生式的标识符，并且在计算 variable-list 产生式中的表达式时必须存在 。 variable-list 中的表达式可能相互引用。
 * 在计算 let-expression 中的表达式之前，必须先计算 variable-list 中的表达式。
 * 除非使用了 variable-list 中的表达式，否则不能对其进行计算。
@@ -476,7 +862,7 @@ M语言表达式的计算，只会产生两种输出结果：
 
 引发错误语法：  
 error-raising-expression:  
-&nbsp;&nbsp;&nbsp;&nbsp;error expression
+　　error expression
 
 文本值可作为错误表达式的简写形式：  
 
@@ -512,13 +898,13 @@ error [
 
 处理错误的语法：  
 error-handling-expression:  
-&nbsp;&nbsp;&nbsp;&nbsp;try protected-expression otherwise-clauseopt  
+　　try protected-expression otherwise-clauseopt  
 protected-expression:  
-&nbsp;&nbsp;&nbsp;&nbsp;expression  
+　　expression  
 otherwise-clause:  
-&nbsp;&nbsp;&nbsp;&nbsp;otherwise default-expression  
+　　otherwise default-expression  
 default-expression:  
-&nbsp;&nbsp;&nbsp;&nbsp;expression  
+　　expression  
 
 在不使用_otherwise-clause_情况下，有可能出现以下几种情况：  
 
@@ -630,7 +1016,7 @@ in
 省略号（...）可用作error的快捷方式。  
 
 not-implemented-expression:
-&nbsp;&nbsp;&nbsp;&nbsp;...  
+　　...  
 
 例如，下面的示例等效于前面的示例：  
 
