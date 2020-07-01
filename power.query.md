@@ -353,7 +353,7 @@ try error "negative unit count" otherwise 42
 // if true then "value" else 42  
 ```
 
-## 词法结构(Lexical Structure)  
+## 词法结构  
 
 ### 文档  
 
@@ -1011,7 +1011,7 @@ null值的原生类型是内建类型null
 
 ### Logical  
 
-逻辑值用于布尔运算，值为 true 或 false。 使用文本 true 和 false 写入逻辑值。 为逻辑值定义了以下运算符：
+logical值用于布尔运算，值为 true 或 false。 使用文本 true 和 false 写入逻辑值。 为逻辑值定义了以下运算符：
 
 | Operator | Result                  |
 |----------|-------------------------|
@@ -1029,7 +1029,7 @@ null值的原生类型是内建类型null
 
 ### Number
 
-数值用于数字和算术运算。 下面是数字文本的示例：  
+number值用于数字和算术运算。 下面是数字文本的示例：  
 
 ```M
 3.14  // Fractional number 
@@ -1076,29 +1076,472 @@ null值的原生类型是内建类型null
 
 ### Time  
 
-### Date
+time值存储了对一天中的时间的不透明表示形式。时间被编码为自午夜起的时钟周期数，即 24 小时制中已经过去的 100 纳秒的数量。自午夜起的最大时钟周期数对应 23:59:59.9999999 这一时刻。  
+时间值可以使用 #time 内部函数来构造。  
 
-### DateTime
+```M
+#time(hour, minute, second)
+```
 
-### DateTimeZone
+填入的值必须满足以下条件，否则将引发原因为 Expression.Error 的错误代码：  
+0 ≤ hour ≤ 24  
+0 ≤ minute ≤ 59  
+0 ≤ second ≤ 59  
+此外，如果 hour = 24，则 minute 和 second 必须为零。  
+为时间值定义了以下运算符：  
+
+| 运算符 | 结果       |
+|--------|----------|
+| x = y  | 等于       |
+| x <> y | 不等于     |
+| x >= y | 大于或等于 |
+| x > y  | 大于       |
+| x < y  | 小于       |
+| x <= y | 小于或等于 |
+
+以下预算夫允许操作对象中的一个或两个是time  
+
+| 运算符 | 左操作数 | 右操作数 | 含义                         |
+|--------|----------|----------|----------------------------|
+| x + y  | time     | duration | 通过持续时间计算时间偏移     |
+| x + y  | duration | time     | 通过持续时间计算时间偏移     |
+| x - y  | time     | duration | 通过持续时间计算反向时间偏移 |
+| x - y  | time     | time     | 两个时间间隔                |
+| x & y  | date     | time     | 合并成日期+时间格式          |
+
+时间值的原生类型是内建类型time
+
+### Date  
+
+date值存储了对某一天的不透明表示形式。日期编码为有史以来经过的天数，从公历 0001 年 1 月 1 日开始。 有史以来的最大天数为 3652058，对应 9999 年 12 月 31 日。  
+日期值可以使用 #date 内部函数来构造。  
+
+```M
+#date(year, month, day)
+```
+
+填入的值必须满足以下条件，否则将引发原因为 Expression.Error 的错误代码：  
+
+1 ≤ year ≤ 9999  
+1 ≤ month ≤ 12  
+1 ≤ day ≤ 31  
+
+此外，日期必须对选定的月份和年份有效。  
+为日期值定义了以下运算符：  
+
+| 运算符 | 结果       |
+|--------|----------|
+| x = y  | 等于       |
+| x <> y | 不等于     |
+| x >= y | 大于或等于 |
+| x > y  | 大于       |
+| x < y  | 小于       |
+| x <= y | 小于或等于 |  
+
+以下运算符允许其一个或两个操作对象为date：  
+
+| 运算符 | 左操作数 | 右操作数 | 含义                         |
+|--------|----------|----------|----------------------------|
+| x + y  | date     | duration | 通过持续时间计算日期偏移     |
+| x + y  | duration | date     | 通过持续时间计算日期偏移     |
+| x - y  | date     | duration | 通过持续时间计算反向日期偏移 |
+| x - y  | date     | date     | 日期之间的持续时间           |
+| x & y  | date     | time     | 合并成日期+时间格式          |
+
+日期值的原生类型是内建类型date  
+
+### DateTime  
+
+datetime包含了date和time。  
+datetime值可以通过内建函数#datetime来构建  
+
+```M
+#datetime(year, month, day, hour, minute, second)
+```
+
+填入的值必须满足以下条件，否则将引发原因为 Expression.Error 的错误代码：  
+
+1 ≤ year ≤ 9999  
+1 ≤ month ≤ 12  
+1 ≤ day ≤ 31  
+0 ≤ hour ≤ 23  
+0 ≤ minute ≤ 59  
+0 ≤ second ≤ 59  
+
+此外，日期必须对选定的月份和年份有效。  
+为datetime值定义了以下运算符：  
+
+| 运算符 | 结果       |
+|--------|----------|
+| x = y  | 等于       |
+| x <> y | 不等于     |
+| x >= y | 大于或等于 |
+| x > y  | 大于       |
+| x < y  | 小于       |
+| x <= y | 小于或等于 |  
+
+以下运算符允许其一个或两个操作对象为datetime：  
+
+| 运算符 | 左操作数 | 右操作数 | 含义                             |
+|--------|----------|----------|--------------------------------|
+| x + y  | datetime | duration | 通过持续时间计算日期时间偏移     |
+| x + y  | duration | datetime | 通过持续时间计算日期时间偏移     |
+| x - y  | datetime | duration | 通过持续时间计算反向日期时间偏移 |
+| x - y  | datetime | datetime | 日期时间之间的持续时间           |  
+
+datetime值的原生类型是内建类型datetime  
+
+### DateTimeZone  
+
+datetimezone值包含日期时间和时区。时区编码为从 UTC 偏移的分钟数，即datetime的time部分从全球协调时 (UTC) 偏移的分钟数。 UTC 偏移分钟数的最小值为 -840，表示 UTC 偏移量 -14:00，或者说比 UTC 早 14 小时。 UTC 偏移分钟数的最大值为 840，对应于 UTC 偏移量 14:00。  
+
+datetimezone值可以使用 #datetimezone 内建函数来构造。  
+
+```M
+#datetimezone(
+       year, month, day,
+       hour, minute, second,
+       offset-hours, offset-minutes)
+```
+
+填入的值必须满足以下条件，否则将引发原因为 Expression.Error 的错误代码：  
+1 ≤ year ≤ 9999  
+1 ≤ month ≤ 12  
+1 ≤ day ≤ 31  
+0 ≤ hour ≤ 23  
+0 ≤ minute ≤ 59  
+0 ≤ second ≤ 59  
+-14 ≤ offset-hours ≤ 14  
+-59 ≤ offset-minutes ≤ 59  
+
+此外，日期必须对所选月份和年份有效，如果偏移小时数 = 14，则偏移分钟数<= 0，如果偏移小时数 = -14，则偏移分钟数 >= 0。  
+
+为datetimezone值可以使用值定义了以下运算符：  
+
+| 运算符 | 结果       |
+|--------|----------|
+| x = y  | 等于       |
+| x <> y | 不等于     |
+| x >= y | 大于或等于 |
+| x > y  | 大于       |
+| x < y  | 小于       |
+| x <= y | 小于或等于 |  
+
+以下运算符允许其一个或两个操作对象为datetimezone：  
+
+| 运算符 | 左操作数 | 右操作数 | 含义                             |
+|--------|----------|----------|--------------------------------|
+| x + y  | datetimezone | duration | 通过持续时间计算datetimezone偏移     |
+| x + y  | duration | datetimezone | 通过持续时间计算datetimezone偏移     |
+| x - y  | datetimezone | duration | 通过持续时间计算反向datetimezone偏移 |
+| x - y  | datetimezone | datetimezone | datetimezone之间的持续时间   |  
+
+datetimezone值的原生类型是内建类型datetimezone  
 
 ### Duration
 
-### Text
+duration值存储以 100 纳秒为单位的时间轴上两点之间的距离的不透明表示。 持续时间的大小可以是正的，也可以是负的，正值表示时间向前推进，负值表示时间向后推进。 在持续时间中可以存储的最小值是 -9,223,372,036,854,775,808 个时钟周期，即往前 10,675,199 天 2 小时 48 分 05.4775808 秒。 在持续时间中可以存储的最大值是 9,223,372,036,854,775,807 个时钟周期，即往后 10,675,199 天 2 小时 48 分 05.4775807 秒。  
+
+duration值可以使用 #duration 内建函数来构造。  
+
+```M
+#duration(0, 0, 0, 5.5)          // 5.5 seconds 
+#duration(0, 0, 0, -5.5)         // -5.5 seconds 
+#duration(0, 0, 5, 30)           // 5.5 minutes 
+#duration(0, 0, 5, -30)          // 4.5 minutes 
+#duration(0, 24, 0, 0)           // 1 day 
+#duration(1, 0, 0, 0)            // 1 day
+```
+
+为duration值可以使用值定义了以下运算符：  
+
+| 运算符 | 结果       |
+|--------|----------|
+| x = y  | 等于       |
+| x <> y | 不等于     |
+| x >= y | 大于或等于 |
+| x > y  | 大于       |
+| x < y  | 小于       |
+| x <= y | 小于或等于 |  
+
+以下运算符允许其一个或两个操作对象为duration：  
+
+| 运算符 | 左操作数 | 右操作数 | 含义                       |
+|--------|----------|----------|--------------------------|
+| x + y  | datetime | duration | 通过持续时间计算日期时间偏移     |
+| x + y  | duration | datetime | 通过持续时间计算日期时间偏移     |
+| x + y  | duration | duration | 持续时间之和               |
+| x - y  | datetime | duration | 过持续时间计算反向日期时间偏移 |
+| x - y  | datetime | datetime | 日期时间之间的持续时间     |
+| x - y  | duration | duration | 持续时间之差               |
+| x * y  | duration | number   | 持续时间的 N 倍            |
+| x * y  | number   | duration | 持续时间的 N 倍            |
+| x / y  | duration | number   | 持续时间的分数             |  
+
+!> #duration(0,1,0,0)\/5 = 0.00 : 12 : 00 天开始除，余数转成下一级再继续除。  
+#duration(1,0,0,0)\/5 = 0.04 : 48 : 00  
+
+duration值的原生类型是内建类型duration  
+
+### Text  
+
+text值表示 Unicode 字符序列。 text值具有符合以下语法的文本形式：  
+_text-literal_：  
+　　" text-literal-characters<sub>opt</sub> "  
+text-literal-characters：
+　　text-literal-character text-literal-characters<sub>opt</sub>  
+text-literal-character：  
+　　single-text-character  
+　　character-escape-sequence  
+　　double-quote-escape-sequence  
+single-text-character：  
+　　除后跟 ( (U+0028) 的 " (U+0022) 或 # (U+0023) 外的任何字符  
+double-quote-escape-sequence:  
+　　"" (U+0022, U+0022)  
+
+例子:  
+
+```M
+"ABC" // the text value ABC
+```
+
+为text值可以使用值定义了以下运算符：  
+
+| 运算符 | 结果       |
+|--------|----------|
+| x = y  | 等于       |
+| x <> y | 不等于     |
+| x >= y | 大于或等于 |
+| x > y  | 大于       |
+| x < y  | 小于       |
+| x <= y | 小于或等于 |
+| x & y  | 串联       |
+
+text值的原生类型是内建类型text  
 
 ### Binary
 
+binary值表示字节序列。 没有文本格式。 提供了几个标准库函数来构造二进制值。 例如，#binary 可用于从字节列表构造二进制值：  
+
+```M
+#binary( {0x00, 0x01, 0x02, 0x03} )
+```
+
+为binary值可以使用值定义了以下运算符：  
+
+| 运算符 | 结果       |
+|--------|----------|
+| x = y  | 等于       |
+| x <> y | 不等于     |
+| x >= y | 大于或等于 |
+| x > y  | 大于       |
+| x < y  | 小于       |
+| x <= y | 小于或等于 |
+
+binary值的原生类型是内建类型binary  
+
 ### List
+
+list值是一个能够在枚举时生成一系列各种值的值。list生成的值可以包含任何类型的值，包括列表。 可以使用初始化语法构造列表，如下所示：  
+
+list-expression:  
+　　{ item-list<sub>opt</sub> }  
+item-list：  
+　　item  
+　　item , item-list  
+item：  
+　　expression  
+　　expression .. expression  
+
+下面是一个列表表达式的示例，它定义了包含三个文本值的列表："A"、"B" 和 "C"。  
+
+```M
+{"A", "B", "C"}
+```
+
+"A" 是列表中的第一项，"C" 是列表中的最后一项。  
+
+* 列表项在被访问之前不会被计算(惰性)  
+* 通常用 list 语法构造的列表值将按其在 item-list 中出现的顺序生成项,从库函数返回的列表在每次枚举时可能生成不同的集合或不同数量的值。  
+
+若要在列表中包含整数序列，可以使用 a..b 形式：  
+
+```M
+{ 1, 5..9, 11 }     // { 1, 5, 6, 7, 8, 9, 11 }
+```
+
+列表中的项数，即列表计数，可以使用 List.Count 函数来确定。  
+
+```M
+List.Count({true, false})  // 2 
+List.Count({})             // 0
+```
+
+包含无限项的列表是有效的；对这种列表使用List.Count()结果是undefined，并且可能引发错误或无法终止。  
+
+如果列表不包含任何项，则将其称为空列表。 空列表写为：  
+
+```M
+{}  // empty list
+```
+
+为列表定义了以下运算符：  
+
+| 运算符 | 结果        |
+|--------|-------------|
+| x = y  | 等于        |
+| x <> y | 不等于      |
+| x & y  | 列表链接 |  
+
+例如:  
+
+```M
+{1, 2} & {3, 4, 5}   // {1, 2, 3, 4, 5} 
+{1, 2} = {1, 2}      // true 
+{2, 1} <> {1, 2}     // true
+```
+
+list值的原生类型是内建类型list  
 
 ### Record
 
+record值是字段的有序序列。 字段由字段名和字段值组成 。字段名是在该记录中定义一个字段的唯一的文本值。 字段值可以是任何类型的值，包括记录。 可以使用初始化语法构造记录，如下所示：
+record-expression:  
+　　[ field-list<sub>opt</sub> ]  
+field-list:  
+　　field  
+　　field , field-list  
+field:  
+　　field-name = expression  
+field-name:  
+　　generalized-identifier  
+　　quoted-identifier  
+
+下面的示例使用名为 x、值为 1 的字段和名为 y、值为 2 的字段构造记录。  
+
+```M
+[ x = 1, y = 2 ]  
+```
+
+在计算记录表达式时，以下条件适用：  
+
+* 分配给每个字段名的表达式用于确定关联字段的值。
+* 如果分配给字段名的表达式在计算时生成一个值，则该值将成为结果记录的字段值。
+* 如果分配给字段名的表达式在计算时引发错误，将记录引发了错误这一事实，还将记录该字段以及引发的错误值。 对该字段的后续访问将导致重新引发该错误。
+* 表达式是在类似父环境的环境中计算的，只合并了与记录的每个字段（正在初始化的字段除外）的值相对应的变量。
+* 在访问相应字段之前，不会计算记录中的值。
+* 记录中的值最多计算一次。
+* 表达式的结果是包含空元数据记录的记录值。
+* 记录中字段的顺序由它们在 record-initializer-expression 中出现的顺序定义。
+* 指定的每个字段名在该记录中都必须是唯一的，否则为错误。 使用序号比较来比较名称。
+
+```M
+[ x = 1, x = 2 ] // error: field names must be unique 
+[ X = 1, x = 2 ] // OK
+```
+
+不含字段的记录称为空记录，并按如下方式写入：  
+
+```M
+[] // empty record
+```
+
+虽然在访问一个字段或比较两个记录时，记录字段的顺序并不重要，但在其他上下文中（如枚举记录字段时），它是重要的。  
+获得字段时，这两条记录会产生不同的结果：  
+
+```M
+Record.FieldNames([ x = 1, y = 2 ]) // [ "x", "y" ] 
+Record.FieldNames([ y = 1, x = 2 ]) // [ "y", "x" ]
+```
+
+可以使用 Record.FieldCount 函数确定记录中的字段数。 例如：  
+
+```M
+Record.FieldCount([ x = 1, y = 2 })  // 2 
+Record.FieldCount([])                // 0
+```
+
+除了使用记录初始化语法 [ ]，还可以从值列表、字段名列表或记录类型构造记录。 例如：
+
+```M
+Record.FromList({1, 2}, {"a", "b"})
+```  
+
+以上等效于：  
+
+```M
+[ a = 1, b = 2 ]
+```
+
+为记录值定义了以下运算符：  
+
+| 运算符 | 结果   |
+|--------|------|
+| x = y  | 等于   |
+| x <> y | 不等于 |
+| x & y  | 合并   |
+
+以下示例说明了上述运算符。 请注意，如果字段名有重叠，合并的记录会使用来自右边操作对象的字段替代来自左边操作对象的字段。  
+
+```M
+[ a = 1, b = 2 ] & [ c = 3 ]    // [ a = 1, b = 2, c = 3 ] 
+[ a = 1, b = 2 ] & [ a = 3 ]    // [ a = 3, b = 2 ] 
+[ a = 1, b = 2 ] = [ b = 2, a = 1 ]         // true 
+[ a = 1, b = 2, c = 3 ] <> [ a = 1, b = 2 ] // true
+```
+
+record值的原生类型是内建类型record,它指定一个打开的空字段列表。  
+
 ### Table
+
+table值是行的有序序列。 行是值的有序序列。 表的类型决定了表中所有行的长度表列的名称、列的类型以及键(key)（如果有的话）的结构。  
+表没有文字语法。 提供了几个标准库函数来构造二进制值。 例如，可使用 #table 从一列行列表和一列头名称构造表：  
+
+```M
+#table({"x", "x^2"}, {{1,1}, {2,4}, {3,9}})
+```
+
+The above example constructs a table with two columns, both of which are of type any.  
+
+#table 也可用于指定完整表类型：  
+
+```M
+#table(
+    type table [Digit = number, Name = text],  
+    {{1,"one"}, {2,"two"}, {3,"three"}} 
+    )
+```  
+
+这里新建的表,指定了表的类型和表的列的列名和列的类型  
+
+为表值定义了以下运算符：  
+
+| 运算符 | 结果   |
+|--------|------|
+| x = y  | 等于   |
+| x <> y | 不等于 |
+| x & y  | 串联   |
+
+表串联将对齐名称相似的列，并为仅出现在一个操作数表中的列填充 null。 下面的示例演示表串联：  
+
+| A    | B | C    |
+|------|---|------|
+| 1    | 2 | null |
+| null | 3 | 4    |
+
+table值的原生类型是自定义表类型（派生自内在类型 table），它列出列名，指定所有列类型为任意，并且没有键。 （有关表类型的详细信息，请参见[表类型](power.query?id=表类型)。）  
 
 ### Function
 
-### Type
+函数值是将一组参数映射到单个值的值。 函数值的详细信息在[函数]((power.query?id=函数))中描述。  
+
+### Type  
+
+类型值是一个对其他值进行分类的值。 类型值的详细信息在[类型](power.query?id=类型)中描述。  
 
 ## 类型
+
+### 表类型
 
 ## 运算符  
 
