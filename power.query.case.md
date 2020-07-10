@@ -133,40 +133,44 @@ in
 #### 创建日期表的演进  
 
 1. 优化季度月份星期的显示
-通常我们显示的时候,比如显示季度,月份,周一般会去这样展示2019Q1, 2019M1, 2019W1, 比直接显示1,1,1可读性更高.  
-所以这里用到了文本处理,将季度前面加了year和Q,月份前加了year和M,周前加了year和W  
+    通常我们显示的时候,比如显示季度,月份,周一般会去这样展示2019Q1, 2019M1, 2019W1, 比直接显示1,1,1可读性更高.  
+    所以这里用到了文本处理,将季度前面加了year和Q,月份前加了year和M,周前加了year和W  
 
-!> 文本类型的函数在文本函数中找  
-
-```M
-//Table.AddColumn(table as table, newColumnName as text, columnGenerator as function, optional columnType as nullable type) as table
-quarterName = Table.AddColumn(week, "Quarter Name", each Text.From([Year])&"Q"&Text.From([Quarter])),
-monthName = Table.AddColumn(quarterName, "Month Name", each Text.From([Year])&"M"&Text.From([Month])),
-weekName = Table.AddColumn(monthName, "Week Name", each Text.From([Year])&"W"&Text.From([Week]))
-```
-
-2. 根据输入的开始和结束日期计算表  
-
-我们可以将上面的内容制作成函数,以便随时得到想要的范围内的日期  
-
-```M
-(#"Input Start Year" as number, #"Input End Year" as number) => let
-    startDate = #date(#"Input Start Year",1,1),
-    endDate = #date(#"Input End Year",12,31),
-    dateNumberList = {1..Number.From(endDate)-Number.From(startDate)+1},
-    dateList = List.Transform( dateNumberList , (item)=> Date.AddDays(startDate,item-1)),
-    dateTable = Table.TransformColumnTypes(Table.RenameColumns(Table.FromList(dateList, Splitter.SplitByNothing(), null, null, ExtraValues.Error),{{"Column1", "date"}}),{{"date", type date}}),
-    year = Table.AddColumn(dateTable, "Year", each Date.Year([date]), type number),
-    quarter = Table.AddColumn(year, "Quarter", each Date.QuarterOfYear([date]), type number),
-    month = Table.AddColumn(quarter, "Month", each Date.Month([date]), type number),
-    week = Table.AddColumn(month, "Week", each Date.WeekOfYear([date]), type number),
+    ```M
+    //Table.AddColumn(table as table, newColumnName as text, columnGenerator as function, optional columnType as nullable type) as table
     quarterName = Table.AddColumn(week, "Quarter Name", each Text.From([Year])&"Q"&Text.From([Quarter])),
     monthName = Table.AddColumn(quarterName, "Month Name", each Text.From([Year])&"M"&Text.From([Month])),
     weekName = Table.AddColumn(monthName, "Week Name", each Text.From([Year])&"W"&Text.From([Week]))
-in
-    weekName
+    ```
+
+2. 根据输入的开始和结束日期计算表  
+
+    我们可以将上面的内容制作成函数,以便随时得到想要的范围内的日期  
+
+    ```M
+    (#"Input Start Year" as number, #"Input End Year" as number) => let
+        startDate = #date(#"Input Start Year",1,1),
+        endDate = #date(#"Input End Year",12,31),
+        dateNumberList = {1..Number.From(endDate)-Number.From(startDate)+1},
+        dateList = List.Transform( dateNumberList , (item)=> Date.AddDays(startDate,item-1)),
+        dateTable = Table.TransformColumnTypes(Table.RenameColumns(Table.FromList(dateList, Splitter.SplitByNothing(), null, null, ExtraValues.Error),{{"Column1", "date"}}),{{"date", type date}}),
+        year = Table.AddColumn(dateTable, "Year", each Date.Year([date]), type number),
+        quarter = Table.AddColumn(year, "Quarter", each Date.QuarterOfYear([date]), type number),
+        month = Table.AddColumn(quarter, "Month", each Date.Month([date]), type number),
+        week = Table.AddColumn(month, "Week", each Date.WeekOfYear([date]), type number),
+        quarterName = Table.AddColumn(week, "Quarter Name", each Text.From([Year])&"Q"&Text.From([Quarter])),
+        monthName = Table.AddColumn(quarterName, "Month Name", each Text.From([Year])&"M"&Text.From([Month])),
+        weekName = Table.AddColumn(monthName, "Week Name", each Text.From([Year])&"W"&Text.From([Week]))
+    in
+        weekName
+    ```
+
+    ![date](./power-query-case/date.function.png)  
+
+    输入起止年份,就可以得到对应的日期列表了  
+
+### Unix Time转
+
+```JSON
+= #datetime(1970, 1, 1, 0, 0, 0) + #duration(0, 0, 0, [unixtime])
 ```
-
-![date](./power-query-case/date.function.png)  
-
-输入起止年份,就可以得到对应的日期列表了  
