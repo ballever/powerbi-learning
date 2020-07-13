@@ -1013,7 +1013,7 @@ null值的原生类型是内建类型null
 
 logical值用于布尔运算，值为 true 或 false。 使用文本 true 和 false 写入逻辑值。 为逻辑值定义了以下运算符：
 
-| Operator | Result                  |
+|  运算符 | 结果                  |
 |----------|-------------------------|
 | x > y    | Greater than            |
 | x >= y   | Greater than or equal   |
@@ -1551,9 +1551,360 @@ table值的原生类型是自定义表类型（派生自内在类型 table），
 * Nullable types,（不仅可以按基类型对所有值进行分类，还可以对 null 值进行分类）
 * Type types - 类型类型（对属于类型的值进行分类）
 
+基元类型包含了基元值和一些抽象类型,抽象类型指的是无法进行唯一分类的类型,比如: function, table, any, none。所有function值都符合抽象类型 function，所有table值都符合抽象类型 table，any值都符合抽象类型 any，no value值符合抽象类型 none。类型为none的表达式必须引发错误或失败使表达式终止，因为无法生成符合类型 none 的值。请注意，基元类型 function 和 table 是抽象的，因为任何函数或表都不直接属于这些类型。 基元类型 record 和 list 是非抽象的，因为它们分别表示一个没有定义字段的 open 记录和一个 any 类型的列表。  
 
+所有不属于封闭基元类型集成员的类型统称为自定义类型。 可以使用 type-expression 编写自定义类型：  
+
+type-expression:  
+　　primary-expression  
+　　type primary-type  
+type:  
+　　parenthesized-expression  
+　　primary-type  
+primary-type:  
+　　primitive-type  
+　　record-type  
+　　list-type  
+　　function-type  
+　　table-type  
+　　nullable-type  
+primitive-type: one of  
+　　any binary date datetime datetimezone duration function list logical  
+　　none null number record table text time type  
+
+基元类型的名字是一些上下文关键字，它只有在type语境中才能被识别。在type语境中使用圆括号时，括号内的语法同常规的表达式语境中的使用方法， 需要使用type关键字才能使得表达式变回type语境。比如，可以type语境中添加圆括号，并在里面调用函数。  
+
+```M
+type nullable ( Type.ForList({type number}) ) 
+// type nullable {number}
+```
+
+括号还可用于访问名称与基元类型名称相冲突的变量：  
+
+```M
+let  record = type [ A = any ]  in  type {(record)} 
+// type {[ A = any ]}
+```
+
+以下示例定义了对数字列表进行分类的类型：  
+
+```M
+type { number }
+```
+
+同样，以下示例定义了一个自定义类型，该类型使用名为 X 和 Y 的必需字段（其值为数字）对记录进行分类：  
+
+```M
+type [ X = number, Y = number ]
+```
+
+值的归属类型是使用标准库函数 Value.Type 获取的，如以下示例所示：  
+
+```M
+Value.Type( 2 )                 // type number 
+Value.Type( {2} )               // type list 
+Value.Type( [ X = 1, Y = 2 ] )  // type record
+```
+
+is 运算符用于确定值的类型是否与给定类型兼容，如以下示例所示：
+
+```M
+1 is number          // true 
+1 is text            // false 
+{2} is list          // true
+```
+
+as 运算符检查该值是否与给定类型兼容，如果不兼容，则引发错误。 否则，它将返回原始值。
+
+```M
+Value.Type( 1 as number )   // type number 
+{2} as text                 // error, type mismatch
+```
+
+请注意，is 和 as 运算符仅接受基元类型作为其正确的操作对象。 M 不提供用于检查值是否符合自定义类型的方法。  
+
+当且仅当符合 X 的所有值也符合 Y 时，类型 X 与类型 Y 兼容。 所有类型都与类型 any 兼容，no types（除了 none 本身）与类型 none 兼容。 下图显示了兼容性关系。 （类型总是与其自身兼容，且类型兼容性可传递。 它形成了一个点阵，类型 any 在最上，类型 none 在最下。）抽象类型的名称设置为斜体。  
+
+![](./power-query/m-spec-type-compatibility.png)  
+
+为type值定义了以下运算符：  
+
+| 运算符 | 结果   |
+|--------|------|
+| x = y  | 等于   |
+| x <> y | 不等于 |
+
+type值的原生类型是内建类型type。  
+
+### 基元类型  
+
+Primitive Types  
+
+M 语言中的类型形成一个源于类型 any 的不相交的层次结构，该类型对所有值进行分类。 任何 M 值都符合 any 的一种基元子类型。 从类型 any 派生的基元类型闭集如下：  
+
+* type null 可以对 null 值进行分类。
+* type logical 可以将值 true 和 false 进行分类。
+* type number 可以对数字值进行分类。
+* type time 可以对时间值进行分类。
+* type date 可以对日期值进行分类。
+* type datetime 可以对日期/时间值进行分类。
+* type datetimezone 可以对时区值进行分类。
+* type duration 可以对持续时间值进行分类。
+* type text 可以对文本值进行分类。
+* type binary 可以对二进制值进行分类。
+* type type 可以对类型值进行分类。
+* type list 可以对列表值进行分类。
+* type record 可以对记录值进行分类。
+* type table 可以对表值进行分类。
+* type function 可以对函数值进行分类。
+* type anynonnull 可以对 null 以外的所有值进行分类。 内部类型 none 不对任何值进行分类。
+
+### Any类型
+
+Any Type  
+
+类型 any 是抽象的，它对 M 中的所有值进行分类，并且 M 中的所有类型都与 any 兼容。 any 类型的变量可以绑定到所有可能的值。 由于 any 是抽象的，因此不能将其归属于值，也就是说，没有值直接属于 any 类型。  
+
+### 列表类型
+
+List Types  
+
+任何属于列表的值都符合内建类型 list，该类型不会对列表值中的项施加任何限制。  
+
+list-type:  
+　　{ item-type }  
+item-type:  
+　　type  
+
+list-type的计算结果是一个基础类型为list的类型值。  
+以下示例演示了用于声明同类列表类型的语法：  
+
+```M
+type { number }        // 数字类型的列表
+     { record }        // 记录类型的列表
+     {{ text }}        // 文本列表的列表
+```
+
+如果值是一个列表，并且该值中的每一项都符合所属列表类型定义中的的某一项的类型，则表示该值符合这个列表类型。  
+
+列表类型中的项目类型暗示着一种绑定：列表中所有项都符合这个列表类型定义的项目类型。  
+
+### 记录类型  
+
+Record Types  
+
+任何记录值都符合内部类型 record，该类型不会对记录值中的字段名称或值施加任何限制。 使用 _record-type 值_限制有效名称集，以及允许与这些名称相关联的值类型。  
+
+record-type:  
+　　[ open-record-marker ]  
+　　[ field-specification-list<sub>opt</sub> ]  
+　　[ field-specification-list , open-record-marker ]  
+field-specification-list:  
+　　field-specification  
+　　field-specification , field-specification-list  
+field-specification:  
+　　optional<sub>opt</sub> field-name field-type-specification<sub>opt</sub>  
+field-type-specification:  
+　　= field-type  
+field-type:  
+　　type  
+open-record-marker:  
+　　...  
+
+record-type的计算结果是一个基础类型为record的类型值。  
+以下示例演示了用于声明记录类型的语法：  
+
+```M
+type [ X = number, Y = number] 
+type [ Name = text, Age = number ]
+type [ Title = text, optional Description = text ] 
+type [ Name = text, ... ]
+```
+
+记录类型默认是封闭的，这意味着符合的值中不可以存在 fieldspecification-list 中没有的字段。 在记录类型中包含 openrecord-marker，可将该类型声明为 open，允许其包含字段规范列表中没有的字段。 以下两个表达式等效：
+
+```M
+type record   // primitive type classifying all records 
+type [ ... ]  // custom type classifying all records
+```
+
+如果值是一条记录，且满足记录类型中的每项字段规范，则称该值符合那个记录类型。 若以下任何一项属实，则满足字段规范：  
+
+* 记录中存在与规范的标识符匹配的字段名称，并且关联的值符合规范的类型
+* 该规范标记为可选，并且在记录中没有相应的字段名称  
+
+当且仅当记录类型为 open 时，符合值可以包含字段规范列表中未列出的字段名。  
+
+### 函数类型  
+
+Function Types  
+
+任何函数值都符合基元类型 function，它不对函数的形参的类型或函数的返回值施加任何限制。 自定义 function-type 值用于对共形函数值的签名施加类型限制。  
+
+function-type:  
+　　function ( parameter-specification-list<sub>opt</sub> ) function-return-type  
+parameter-specification-list：  
+　　required-parameter-specification-list  
+　　required-parameter-specification-list , optional-parameter-specification-list  
+　　optional-parameter-specification-list  
+required-parameter-specification-list：  
+　　required-parameter-specification  
+　　required-parameter-specification , required-parameter-specification-list  
+required-parameter-specification：  
+　　parameter-specification  
+optional-parameter-specification-list：  
+　　optional-parameter-specification  
+　　optional-parameter-specification , optional-parameter-specification-list  
+optional-parameter-specification：  
+　　optional parameter-specification  
+parameter-specification:  
+　　parameter-name parameter-type  
+function-return-type:  
+　　assertion  
+assertion:  
+　　as nullable-primitive-type  
+
+function-type的计算结果是一个基础类型为function的类型值。  
+以下示例说明了声明函数类型的语法：  
+
+```M
+type function (x as text) as number 
+type function (y as number, optional z as text) as any
+```
+
+如果函数值的返回类型与函数类型的返回类型兼容，并且函数类型的每个参数规范与函数的位置对应的形式参数兼容，则函数值符合函数类型。 如果指定的 parameter-type 类型与形式参数的类型兼容，并且如果形式参数是可选的，则参数规范与形式参数兼容。
+为了确定函数类型符合性，会忽略形式参数名称。  
 
 ### 表类型
+
+使用 table-type 值来定义表值的结构。  
+
+table-type:  
+　　table row-type  
+row-type:  
+　　[ field-specification-list ]  
+
+table-type的计算结果是一个基础类型为table的类型值。  
+表的_行类型_将表的列名和列类型指定为封闭记录类型。 从而所有表值都符合类型 table，其行类型为类型 record（空的开放记录类型）。 因此，类型中的表类型是抽象的，这是因为任何表的值都没办法指明表明一行的类型（但是所有表值都具有与类型 table 的行类型兼容的行类型）。 以下示例显示了表类型的构造：  
+
+```M
+type table [A = text, B = number, C = binary] 
+// a table type with three columns named A, B, and C 
+// of column types text, number, and binary, respectively
+```
+
+表类型的值还承载了对表值的_键_的定义。 一个键就是一组列名称。 最多只有一个键可以指定为表的_主键_。 （在 M 中，表键没有语义意义。 然而，外部数据源 [如数据库或 OData 反馈] 常在表上定义键。 Power Query 使用键信息来提高跨源连接操作等高级功能的性能。）  
+
+标准库函数 Type.TableKeys、Type.AddTableKey 和 Type.ReplaceTableKeys 分别可用于获取表类型的键，向表类型添加一个键，替换表类型的所有键。  
+
+```M
+Type.AddTableKey(tableType, {"A", "B"}, false) 
+// add a non-primary key that combines values from columns A and B 
+Type.ReplaceTableKeys(tableType, {}) 
+// returns type value with all keys removed
+```
+
+### Nullable types
+
+对于任何 type T，可以使用 nullable-type 来派生可为 null 的变量：  
+
+nullable-type:  
+　　nullable type  
+
+结果是一个抽象类型，允许类型 T 的值或值 null。  
+
+```M
+42 is nullable number             // true null is
+nullable number                   // true
+```
+
+对 type nullable T 的描述归结为对 type null 或 type T 的描述。（回想一下，可为 null 的类型是抽象的，任何值都不能直接为抽象类型。）  
+
+```M
+Value.Type(42 as nullable number)       // type number
+Value.Type(null as nullable number)     // type null
+```
+
+标准库函数 Type.IsNullable 和 Type.NonNullable 可用于测试类型是否可为 null，并使类型不可为 null。  
+
+以下条件适用（对于任何 type T）：  
+
+* type T 与 type nullable T 兼容
+* Type.NonNullable(type T) 与 type T 兼容  
+
+以下是成对等效（对于任何 type T）：  
+　　type nullable any  
+　　any  
+  
+　　Type.NonNullable(type any)  
+　　type anynonnull  
+  
+　　type nullable none  
+　　type null  
+  
+　　Type.NonNullable(type null)  
+　　type none  
+  
+　　type nullable nullable T  
+　　type nullable T  
+  
+　　Type.NonNullable(Type.NonNullable(type T))  
+　　Type.NonNullable(type T)  
+  
+　　Type.NonNullable(type nullable T)  
+　　Type.NonNullable(type T)  
+  
+　　type nullable (Type.NonNullable(type T))  
+　　type nullable T  
+
+### 值的归属类型
+
+值的归属类型是用来声明一个值是否符合该类型规范的类型。 当一个值归属为一个类型时，只会进行有限的符合性检查。 M 不会对nullable primitive type之外的类型执行符合性检查。如果 M 程序作者选择归属类型定义与可为 null 的基元类型相比更复杂的值，则必须确保这些值符合这些类型。  
+使用库函数 Value.ReplaceType 可以将值归属于类型。 如果新类型与值的本机基元类型不兼容，则函数返回一个具有已归属类型的新值，或者引发一个错误。 特别地，当尝试归属抽象类型（如 any）时，该函数会引发错误。  
+库函数可以根据输入值的归属类型来选择计算复杂类型并将其归属于结果。  
+可以使用库函数 Value.Type 获得值的归属类型。 例如：  
+
+```M
+Value.Type( Value.ReplaceType( {1}, type {number} ))
+// type {number}
+```  
+
+### 类型等效性和兼容性  
+
+M 中未定义类型等效性。比较等效性的任何两个类型值可能返回，也可能不返回 true。 然而，这两种类型（无论是 true 还是 false）之间的关系总是相同的。  
+可以使用库函数 Type.Is 来确定指定类型和可为 null 的基元类型之间的兼容性，该函数接受任意类型值作为其第一个参数，接受可为 null 的基元类型值作为其第二个参数：  
+
+```M
+Type.Is(type text, type nullable text)  // true 
+Type.Is(type nullable text, type text)  // false 
+Type.Is(type number, type text)         // false 
+Type.Is(type [a=any], type record)      // true 
+Type.Is(type [a=any], type list)        // false
+```
+
+M 中不支持确定指定类型与自定义类型的兼容性。
+标准库确实包含一个函数集合，用于从自定义类型中提取定义特征，因此特定的兼容性测试可以实现为 M 表达式。 以下是一些示例；有关详细信息，请参阅 M 库规范。
+
+```M
+Type.ListItem( type {number} ) 
+  // type number 
+Type.NonNullable( type nullable text ) 
+  // type text 
+Type.RecordFields( type [A=text, B=time] ) 
+  // [ A = [Type = type text, Optional = false], 
+  //   B = [Type = type time, Optional = false] ] 
+Type.TableRow( type table [X=number, Y=date] ) 
+  // type [X = number, Y = date] 
+Type.FunctionParameters(
+        type function (x as number, optional y as text) as number) 
+  // [ x = type number, y = type nullable text ] 
+Type.FunctionRequiredParameters(
+        type function (x as number, optional y as text) as number) 
+  // 1 
+Type.FunctionReturn(
+        type function (x as number, optional y as text) as number) 
+  // type number
+```
 
 ## 运算符  
 
@@ -1656,6 +2007,211 @@ if 1 = 1 then "yes" else "no"   // "yes"
 * 计算 if-condition、true-expression 或 false-expression 时引发的错误会扩散。  
 
 ## 函数
+
+函数是一个值，该值表示从一组参数值到单个值的映射。 通过提供一组输入值（参数值）来调用函数，并生成单个输出值（返回值）。  
+
+### 写入函数  
+
+使用 function-expression 写入函数：  
+function-expression:
+      ( parameter-list<sub>opt</sub> ) function-return-type<sub>opt</sub> => function-body
+function-body：
+      expression
+parameter-list：
+      fixed-parameter-list
+      fixed-parameter-list , optional-parameter-list
+      optional-parameter-list
+fixed-parameter-list：
+      parameter
+      parameter , fixed-parameter-list
+parameter：
+      parameter-name parameter-type<sub>opt</sub>
+parameter-name：
+      identifier
+parameter-type：
+      assertion
+function-return-type：
+      assertion
+assertion：
+      as nullable-primiitve-type
+optional-parameter-list:
+      optional-parameter
+      optional-parameter , optional-parameter-list
+optional-parameter:
+      optional parameter
+nullable-primitve-type
+      nullable <sub>opt</sub> primitive-type_  
+
+下面是一个函数的示例，该函数正好需要两个值 x 和 y，并生成对这些值应用 + 运算符的结果。 x 和 y 是参数，是函数的 formal-parameter-list 的一部分，x + y 是函数体 ：  
+
+```M
+(x, y) => x + y
+```
+
+为函数值定义了以下运算符：  
+
+| 运算符 | 结果       |
+|--------|----------|
+| x > y  | 大于       |
+| x <> y | 不等于     |
+
+函数值的原生类型是自定义函数类型(内建类型"函数"的派生类型), 它列出参数名称并指定所有参数类型和返回类型为 any。 （有关[函数类型](power.query?id=函数类型)的详细信息，请参阅函数类型。）  
+
+### 调用函数
+
+函数的 function-body 是通过使用 invokeexpression 调用函数值来执行的 。 调用函数值意味着将计算函数值的 function-body 并返回值或引发错误。  
+
+invoke-expression:  
+　　primary-expression ( argument-list<sub>opt</sub> )  
+argument-list:  
+　　expression-list  
+
+每次调用函数值时，都会将一组值指定为 argument-list，称为函数的参数 。  
+argument-list 用于将固定数量的参数直接指定为表达式列表。 下面的示例定义一个在字段中具有函数值的记录，然后从该记录的另一个字段调用函数：  
+
+```M
+[ 
+    MyFunction = (x, y, z) => x + y + z, 
+    Result1 = MyFunction(1, 2, 3)           // 6
+]
+```
+
+调用函数时，以下条件适用：  
+
+* 用于计算函数的 function-body 的环境包含与每个参数对应的变量，其名称与参数相同。 每个参数的值对应于从 invokeexpression的 argument-list 构造的值（如[参数](power.query?id=参数)中所定义）。  
+* 在计算 function-body 之前，计算与函数参数对应的所有表达式。  
+* 传播在 expression-list 或 functionexpression 中计算表达式时引发的错误。  
+
+从 argument-list 构造的参数数目必须与函数的形参兼容，否则将引发错误，原因代码为 "Expression.Error"。 确定兼容性的过程在参数中定义。  
+
+### 参数  
+
+formal-parameter-list 中可能存在两种形参：  
+
+* 必需参数指示在调用函数时，必须始终指定与形参相对应的实参。 必须先在 formal-parameter-list 中指定必需参数。 以下示例中的函数定义必需参数 x 和 y：  
+
+```M
+[ 
+    MyFunction = (x, y) => x + y, 
+
+    Result1 = MyFunction(1, 1),     // 2 
+    Result2 = MyFunction(2, 2)      // 4
+]
+```
+
+* 可选参数指示在调用函数时，可以指定与形参相对应的实参，但不是必需指定。 如果在调用函数时未指定与可选形参对应的实参，则改为使用 null 值。 可选参数必须出现在 formal-parameter-list 中的任何必需参数之后。 以下示例中的函数定义固定参数 x 和可选参数 y：  
+
+```M
+[ 
+    MyFunction = fn(x, optional y) =>
+                        if (y = null) x else x + y, 
+    Result1 = MyFunction(1),        // 1 
+    Result2 = MyFunction(1, null),  // 1 
+    Result3 = MyFunction(2, 2),     // 4
+]
+```
+
+调用函数时指定的参数数目必须与形参列表兼容。 函数 F 的一组参数 A 的兼容性计算如下：  
+
+* 让值 N 表示从 argumentlist 构造的参数 A 的数目 。 例如：  
+
+```M
+MyFunction()             // N = 0 
+MyFunction(1)            // N = 1 
+MyFunction(null)         // N = 1 
+MyFunction(null, 2)      // N = 2 
+MyFunction(1, 2, 3)      // N = 3 
+MyFunction(1, 2, null)   // N = 3 
+MyFunction(1, 2, {3, 4}) // N = 3
+```
+
+* 让值 Required 表示 F 的固定参数的数目，Optional 表示 F 的可选参数的数目 。 例如：  
+
+```M
+()               // Required = 0, Optional = 0 
+(x)              // Required = 1, Optional = 0 
+(optional x)     // Required = 0, Optional = 1 
+(x, optional y)  // Required = 1, Optional = 1
+```
+
+* 如果以下为 true，则参数 A 与函数 F 兼容：
+  * (N >= Fixed) 和 (N <= (Fixed + Optional ))
+  * 实参类型与 F 的相应形参类型兼容
+
+* 如果函数具有已声明的返回类型，则函数 F 的主体的结果值与 F 的返回类型兼容，前提是以下为 true：
+  * 通过使用为函数形参提供的实参计算函数体得到的值的类型与返回类型兼容。
+
+* 如果函数体产生了与函数的返回类型不兼容的值，则会引发错误，原因代码为 "Expression.Error"。
+
+### 递归函数
+
+若要编写递归函数值，必须使用范围运算符 (@) 在其范围内引用函数。 例如，下面的记录包含一个定义 Factorial 函数的字段和调用该函数的另一个字段：  
+
+```M
+[ 
+    Factorial = (x) => 
+                if x = 0 then 1 else x * @Factorial(x - 1), 
+    Result = Factorial(3)  // 6 
+]
+```
+
+同样，只要需要访问的每个函数都具有名称，就可以编写相互递归函数。 在下面的示例中，部分 Factorial 函数已重构为第二个 Factorial2 函数。
+
+```M
+[ 
+    Factorial = (x) => if x = 0 then 1 else Factorial2(x), 
+    Factorial2 = (x) => x * Factorial(x - 1), 
+    Result = Factorial(3)     // 6 
+]
+```
+
+### 闭包  
+
+函数可以将另一个函数作为值返回。 此函数也可以依赖于原始函数的一个或多个参数。 在下面的示例中，与字段 MyFunction 关联的函数返回一个函数，该函数返回指定给它的参数：  
+
+```M
+[ 
+    MyFunction = (x) => () => x, 
+    MyFunction1 = MyFunction(1), 
+    MyFunction2 = MyFunction(2), 
+    Result = MyFunction1() + MyFunction2()  // 3 
+]
+```
+
+### 函数和环境  
+
+除了参数外，function-expression 的 function-body 还可以引用函数初始化时环境中存在的变量 。 例如，字段 MyFunction 定义的函数访问封闭记录 A 的字段 C：　　
+
+```M
+[ 
+A =  
+    [ 
+        MyFunction = () => C, 
+        C = 1 
+    ], 
+B = A[MyFunction]()           // 1 
+]
+```
+
+### 简化声明
+
+each-expression 是使用名为 _（下划线）的单个形参声明非类型化函数的语法简写形式。  
+each-expression:  
+　　each each-expression-body  
+each-expression-body:  
+　　function-body  
+简化的声明通常用于提高高阶函数调用的可读性。  
+例如，以下声明对在语义上是等效的：  
+
+```M
+each _ + 1 
+(_) => _ + 1  
+each [A] 
+(_) => _[A] 
+ 
+Table.SelectRows( aTable, each [Weight] > 12 ) 
+Table.SelectRows( aTable, (_) => _[Weight] > 12 )
+```
 
 ## 错误处理
 
